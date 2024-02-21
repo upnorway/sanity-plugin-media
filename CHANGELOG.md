@@ -1,9 +1,12 @@
-<!-- markdownlint-disable --><!-- textlint-disable -->
+# Changelog
 
-# 📓 Changelog
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-All notable changes to this project will be documented in this file. See
-[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+### [2.2.8](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.5...v2.2.8) (2024-02-21)
+
+### [2.2.7](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.5...v2.2.7) (2024-02-21)
+
+### [2.2.6](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.5...v2.2.6) (2024-02-21)
 
 ## [2.2.5](https://github.com/sanity-io/sanity-plugin-media/compare/v2.2.4...v2.2.5) (2024-01-12)
 
