@@ -411,21 +411,21 @@ export const ensureTagsExistEpic: MyEpic = (action$, state$) =>
       return from(action.payload.tags).pipe(
         concatMap(tagName => {
           const asset = action.payload.currentAsset;
-          const tagExists = Object.values(state$?.value?.tags?.byIds).some(tag => tag?.tag?.name?.current === tagName);
-          const tagIdExistsInAsset = action.payload.currentAsset.opt?.media?.tags?.some(tagRef => {
+          const isTagExists = Object.values(state$?.value?.tags?.byIds).some(tag => tag?.tag?.name?.current === tagName);
+          const isTagIdExistsInAsset = action.payload.currentAsset.opt?.media?.tags?.some(tagRef => {
             const tag = state$.value.tags.byIds[tagRef._ref];
             return tag?.tag?.name?.current === tagName;
           });
-          if (!tagExists) {
+          if (!isTagExists) {
             return action$.pipe(
               ofType(tagsSlice.actions.createComplete.type),
               take(1),
               mergeMap(createCompleteAction => {
                 const newTagRef = createCompleteAction.payload.tag._id;
                 updatedTagOptions.push({
-                  "_ref": newTagRef,
-                  "_type": "reference",
-                  "_weak": true
+                  _ref: newTagRef,
+                  _type: "reference",
+                  _weak: true
                 });
                 
                 const formData = createFormData(asset, updatedTagOptions);
@@ -437,14 +437,14 @@ export const ensureTagsExistEpic: MyEpic = (action$, state$) =>
                 name: tagName as string,
               }))
             );
-          } else if (!tagIdExistsInAsset) {
+          } else if (!isTagIdExistsInAsset) {
             const newTagRef = Object.entries(state$.value.tags.byIds).find(([tagId, tag]) => tag?.tag?.name?.current === tagName)?.[0];
 
             if (newTagRef) {
               updatedTagOptions.push({
-                "_ref": newTagRef,
-                "_type": "reference",
-                "_weak": true
+                _ref: newTagRef,
+                _type: "reference",
+                _weak: true
               });
 
               const formData = createFormData(asset, updatedTagOptions);
@@ -666,12 +666,12 @@ const selectTagsByIds = (state: RootReducerState) => state.tags.byIds
 const selectTagsAllIds = (state: RootReducerState) => state.tags.allIds
 
 const createFormData = (asset: any, updatedTagOptions: any[]) => ({
-  "alt": asset?.alt,
-  "description": asset?.description,
-  "opt": { "media": { "tags": updatedTagOptions } },
-  "originalFilename": asset?.originalFilename,
-  "title": asset?.title,
-  "attribution": asset?.attribution
+  alt: asset?.alt,
+  description: asset?.description,
+  opt: { media: { tags: updatedTagOptions } },
+  originalFilename: asset?.originalFilename,
+  title: asset?.title,
+  attribution: asset?.attribution
 });
 
 export const selectTags: Selector<RootReducerState, TagItem[]> = createSelector(
