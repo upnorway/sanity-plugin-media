@@ -5,6 +5,7 @@ export const tagOptionSchema = z.object({
   value: z.string().trim().min(1, {message: 'Value cannot be empty'})
 })
 
+//TODO: improve this not to use the library name as z. and also, this should be wrapped with util
 export const assetFormSchema = z.object({
   alt: z.string().trim().optional(),
   description: z.string().trim().optional(),
