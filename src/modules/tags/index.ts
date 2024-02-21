@@ -26,8 +26,8 @@ type TagsReducerState = {
   fetchingError?: HttpError
   // totalCount: number
   panelVisible: boolean
-  operationSuccess: boolean
-  operationFailure: boolean
+  isOperationSuccess: boolean
+  isOperationFailure: boolean
 }
 
 const initialState = {
@@ -39,8 +39,8 @@ const initialState = {
   fetching: false,
   fetchingError: undefined,
   panelVisible: true,
-  operationSuccess: false,
-  operationFailure: false
+  isOperationSuccess: false,
+  isOperationFailure: false
 } as TagsReducerState
 
 const ASSET_QUERY = `
@@ -133,16 +133,16 @@ const tagsSlice = createSlice({
     checkAndCreateTagsStart(state) {
     },
     checkAndCreateTagsSuccess(state, action) {
-      state.operationSuccess = true;
-      state.operationFailure = false;
+      state.isOperationSuccess = true;
+      state.isOperationFailure = false;
     },
     checkAndCreateTagsFailure(state, action) {
-      state.operationSuccess = false; // Reset success state on failure
-      state.operationFailure = true;
+      state.isOperationSuccess = false; // Reset success state on failure
+      state.isOperationFailure = true;
     },
     resetTagsOperationState(state) {
-      state.operationSuccess = false;
-      state.operationFailure = false;
+      state.isOperationSuccess = false;
+      state.isOperationFailure = false;
     },
     createError(state, action: PayloadAction<{ error: HttpError; name: string }>) {
       state.creating = false

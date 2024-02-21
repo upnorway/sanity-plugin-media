@@ -57,8 +57,6 @@ export type AssetsReducerState = {
   pageIndex: number
   pageSize: number
   view: BrowserView
-  operationSuccess: boolean
-  operationFailure: boolean
   // totalCount: number
 }
 
@@ -95,9 +93,7 @@ export const initialState = {
   pageIndex: 0,
   pageSize: 100,
   // totalCount: -1,
-  view: 'grid',
-  operationSuccess: false,
-  operationFailure: false
+  view: 'grid'
 } as AssetsReducerState
 
 const assetsSlice = createSlice({

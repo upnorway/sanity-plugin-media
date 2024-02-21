@@ -19,8 +19,8 @@ const SearchFacetsControl = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   // Assuming you have these selectors to get the operation state
-  const isOperationSuccess = useTypedSelector(state => state.tags.operationSuccess);
-  const isOperationFailure = useTypedSelector(state => state.tags.operationFailure);
+  const isOperationSuccess = useTypedSelector(state => state.tags.isOperationSuccess);
+  const isOperationFailure = useTypedSelector(state => state.tags.isOperationFailure);
 
   const LOADING_TEXT = 'Migrating...Please wait';
   const DEFAULT_TEXT = 'Check & Migrate Old Tags';
