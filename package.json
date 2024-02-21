@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/sanity-io/sanity-plugin-media.git"
+    "url": "git@github.com:upnorway/sanity-plugin-media.git"
   },
   "license": "MIT",
   "author": "Sanity.io <hello@sanity.io>",

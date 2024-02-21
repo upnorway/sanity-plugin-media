@@ -19,8 +19,16 @@ const SearchFacetsControl = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   // Assuming you have these selectors to get the operation state
-  const operationSuccess = useTypedSelector(state => state.tags.operationSuccess);
-  const operationFailure = useTypedSelector(state => state.tags.operationFailure);
+  const isOperationSuccess = useTypedSelector(state => state.tags.operationSuccess);
+  const isOperationFailure = useTypedSelector(state => state.tags.operationFailure);
+
+  const LOADING_TEXT = 'Migrating...Please wait';
+  const DEFAULT_TEXT = 'Check & Migrate Old Tags';
+  const DEFAULT_ICON = AddIcon;
+  const FONT_SIZE = 1;
+  const MODE = "bleed";
+  const SPACE = 2;
+  const TONE = "primary";
 
   const popoverProps = usePortalPopoverProps()
 
@@ -33,11 +41,11 @@ const SearchFacetsControl = () => {
 
   // React to the completion of the operation
   useEffect(() => {
-    if (operationSuccess || operationFailure) {
+    if (isOperationSuccess || isOperationFailure) {
       setIsLoading(false);
       // Optionally, dispatch an action to reset the operation state here
     }
-  }, [operationSuccess, operationFailure, dispatch]);
+  }, [isOperationSuccess, isOperationFailure, dispatch]);
 
   const filteredFacets = FACETS
     // Filter facets based on current context, whether it's invoked as a tool, or via selection through via custom asset source.
@@ -144,15 +152,16 @@ const SearchFacetsControl = () => {
           text="Clear"
         />
       )}
+
       <Button
         onClick={handleCheckCreateTagsClick}
-        text={isLoading ? 'Migrating...Please wait' : 'Check & Migrate Old Tags'}
-        icon={isLoading ? null : AddIcon} // Adjust icon based on your preference for loading state
+        text={isLoading ? LOADING_TEXT : DEFAULT_TEXT}
+        icon={isLoading ? null : DEFAULT_ICON} // Adjust icon based on your preference for loading state
         disabled={isLoading} // Disable button when operation is in progress
-        fontSize={1}
-        mode="bleed"
-        space={2}
-        tone="primary"
+        fontSize={FONT_SIZE}
+        mode={MODE}
+        space={SPACE}
+        tone={TONE}
       />
     </Flex>
   )

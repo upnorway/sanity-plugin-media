@@ -37,11 +37,5 @@ export const ASSETS_ACTIONS = {
     function prepare({assets, tag}: {assets: AssetItem[]; tag: Tag}) {
       return {payload: {assets, tag}}
     }
-  ),
-  prepareTagOptions: createAction(
-    'actions/prepareTagOptions',
-    function prepare({assetId, tags, currentAsset}) {
-      return { payload: { assetId, tags, currentAsset } };
-    }
-  )  
+  )
 }

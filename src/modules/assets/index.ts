@@ -157,18 +157,6 @@ const assetsSlice = createSlice({
     clear(state) {
       state.allIds = []
     },
-    checkAndCreateTagsSuccess: (state, action) => {
-      state.operationSuccess = true;
-      state.operationFailure = false;
-    },
-    checkAndCreateTagsFailure: (state, action) => {
-      state.operationSuccess = false; // Reset success state on failure
-      state.operationFailure = true;
-    },
-    resetTagsOperationState: (state) => {
-      state.operationSuccess = false;
-      state.operationFailure = false;
-    },
     // Remove assets and update page index
     deleteComplete(state, action: PayloadAction<{assetIds: string[]}>) {
       const {assetIds} = action.payload
@@ -531,23 +519,23 @@ export const assetsFetchAfterDeleteAllEpic: MyEpic = (action$, state$) =>
   )
 
 const filterAssetWithoutTag = (tag: Tag) => (asset: AssetItem) => {
-  const tagIndex = asset?.asset?.tags?.findIndex((t: { _ref: string }) => t._ref === tag?._id) ?? -1
+  const tagIndex = asset?.asset?.opt?.media?.tags?.findIndex(t => t._ref === tag?._id) ?? -1
   return tagIndex < 0
 }
 
 const patchOperationTagAppend =
   ({tag}: {tag: Tag}) =>
   (patch: Patch) =>
-    patch
-      .setIfMissing({opt: {}})
-      .setIfMissing({'opt.media': {}})
-      .setIfMissing({'tags': []})
-      .append('tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
+  patch
+    .setIfMissing({opt: {}})
+    .setIfMissing({'opt.media': {}})
+    .setIfMissing({'opt.media.tags': []})
+    .append('opt.media.tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
 
 const patchOperationTagUnset =
   ({asset, tag}: {asset: AssetItem; tag: Tag}) =>
   (patch: Patch) =>
-    patch.ifRevisionId(asset?.asset?._rev).unset([`tags[_ref == "${tag._id}"]`])
+    patch.ifRevisionId(asset?.asset?._rev).unset([`opt.media.tags[_ref == "${tag._id}"]`])
 
 export const assetsRemoveTagsEpic: MyEpic = (action$, state$, {client}) => {
   return action$.pipe(
@@ -848,7 +836,5 @@ export const selectAssetsPickedLength = createSelector(
 )
 
 export const assetsActions = assetsSlice.actions
-
-export const { checkAndCreateTagsSuccess, checkAndCreateTagsFailure, resetTagsOperationState } = assetsSlice.actions
 
 export default assetsSlice.reducer
