@@ -51,7 +51,7 @@ export const FACETS: (SearchFacetDivider | SearchFacetGroup | SearchFacetInputPr
   inputs.inCurrentDocument,
   divider,
   inputs.title,
-  inputs.altText,
+  inputs.alt,
   inputs.description,
   divider,
   inputs.isOpaque,
@@ -62,7 +62,8 @@ export const FACETS: (SearchFacetDivider | SearchFacetGroup | SearchFacetInputPr
   divider,
   inputs.orientation,
   inputs.width,
-  inputs.height
+  inputs.height,
+  inputs.attribution,
 ]
 
 export const GRID_TEMPLATE_COLUMNS = {

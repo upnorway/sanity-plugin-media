@@ -11,7 +11,7 @@ import {assetFormSchema, tagFormSchema, tagOptionSchema} from '../formSchema'
 import {RootReducerState} from '../modules/types'
 
 type CustomFields = {
-  altText?: string
+  alt?: string
   description?: string
   opt?: {
     media?: {
@@ -19,6 +19,7 @@ type CustomFields = {
     }
   }
   title?: string
+  attribution?: string
 }
 
 type SearchFacetInputCommon = {
@@ -233,7 +234,7 @@ export type SearchFacetInputStringProps = SearchFacetInputCommon & {
 }
 
 export type SearchFacetName =
-  | 'altText'
+  | 'alt'
   | 'description'
   | 'fileName'
   | 'height'
@@ -246,6 +247,7 @@ export type SearchFacetName =
   | 'title'
   | 'type'
   | 'width'
+  | 'attribution'
 
 export type SearchFacetOperatorType =
   | 'doesNotInclude'

@@ -13,12 +13,13 @@ import {
 } from '@types'
 import groq from 'groq'
 import {nanoid} from 'nanoid'
-import {Selector} from 'react-redux'
+import {Selector, useDispatch} from 'react-redux'
 import {ofType} from 'redux-observable'
-import {empty, from, of} from 'rxjs'
+import {empty, from, of, toArray} from 'rxjs'
 import {
   bufferTime,
   catchError,
+  concatMap,
   debounceTime,
   filter,
   mergeMap,
@@ -33,6 +34,10 @@ import {searchActions} from '../search'
 import type {RootReducerState} from '../types'
 import {UPLOADS_ACTIONS} from '../uploads/actions'
 import {ASSETS_ACTIONS} from './actions'
+import tags, {tagsActions} from '../../modules/tags'
+import { selectCombinedItems } from '../selectors'
+import useTypedSelector from '../../hooks/useTypedSelector'
+import { useState } from 'react'
 type ItemError = {
   description: string
   id: string
@@ -52,6 +57,8 @@ export type AssetsReducerState = {
   pageIndex: number
   pageSize: number
   view: BrowserView
+  operationSuccess: boolean
+  operationFailure: boolean
   // totalCount: number
 }
 
@@ -88,7 +95,9 @@ export const initialState = {
   pageIndex: 0,
   pageSize: 100,
   // totalCount: -1,
-  view: 'grid'
+  view: 'grid',
+  operationSuccess: false,
+  operationFailure: false
 } as AssetsReducerState
 
 const assetsSlice = createSlice({
@@ -147,6 +156,18 @@ const assetsSlice = createSlice({
     // Clear asset order
     clear(state) {
       state.allIds = []
+    },
+    checkAndCreateTagsSuccess: (state, action) => {
+      state.operationSuccess = true;
+      state.operationFailure = false;
+    },
+    checkAndCreateTagsFailure: (state, action) => {
+      state.operationSuccess = false; // Reset success state on failure
+      state.operationFailure = true;
+    },
+    resetTagsOperationState: (state) => {
+      state.operationSuccess = false;
+      state.operationFailure = false;
     },
     // Remove assets and update page index
     deleteComplete(state, action: PayloadAction<{assetIds: string[]}>) {
@@ -238,7 +259,7 @@ const assetsSlice = createSlice({
               _type,
               _createdAt,
               _updatedAt,
-              altText,
+              alt,
               description,
               extension,
               metadata {
@@ -253,7 +274,9 @@ const assetsSlice = createSlice({
               originalFilename,
               size,
               title,
-              url
+              url,
+              tags,
+              attribution
             } ${pipe} ${sort} ${selector},
           }
         `
@@ -375,7 +398,17 @@ const assetsSlice = createSlice({
       action: PayloadAction<{asset: Asset; closeDialogId?: string; formData: Record<string, any>}>
     ) {
       const assetId = action.payload?.asset?._id
-      state.byIds[assetId].updating = true
+      const asset = action.payload?.asset;
+      if(state.byIds[assetId]){
+        state.byIds[assetId].updating = true
+      } else {
+        state.byIds[assetId] = {
+          _type: 'asset',
+          asset: asset as Asset,
+          picked: false,
+          updating: true
+        }
+      }
     },
     viewSet(state, action: PayloadAction<{view: BrowserView}>) {
       state.view = action.payload?.view
@@ -390,7 +423,7 @@ export const assetsDeleteEpic: MyEpic = (action$, _state$, {client}) =>
     filter(assetsActions.deleteRequest.match),
     mergeMap(action => {
       const {assets} = action.payload
-      const assetIds = assets.map(asset => asset._id)
+      const assetIds = assets.map((asset: { _id: string }) => asset._id)
       return of(assets).pipe(
         mergeMap(() =>
           client.observable.delete({
@@ -498,7 +531,7 @@ export const assetsFetchAfterDeleteAllEpic: MyEpic = (action$, state$) =>
   )
 
 const filterAssetWithoutTag = (tag: Tag) => (asset: AssetItem) => {
-  const tagIndex = asset?.asset?.opt?.media?.tags?.findIndex(t => t._ref === tag?._id) ?? -1
+  const tagIndex = asset?.asset?.tags?.findIndex((t: { _ref: string }) => t._ref === tag?._id) ?? -1
   return tagIndex < 0
 }
 
@@ -508,13 +541,13 @@ const patchOperationTagAppend =
     patch
       .setIfMissing({opt: {}})
       .setIfMissing({'opt.media': {}})
-      .setIfMissing({'opt.media.tags': []})
-      .append('opt.media.tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
+      .setIfMissing({'tags': []})
+      .append('tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
 
 const patchOperationTagUnset =
   ({asset, tag}: {asset: AssetItem; tag: Tag}) =>
   (patch: Patch) =>
-    patch.ifRevisionId(asset?.asset?._rev).unset([`opt.media.tags[_ref == "${tag._id}"]`])
+    patch.ifRevisionId(asset?.asset?._rev).unset([`tags[_ref == "${tag._id}"]`])
 
 export const assetsRemoveTagsEpic: MyEpic = (action$, state$, {client}) => {
   return action$.pipe(
@@ -743,6 +776,7 @@ export const assetsUpdateEpic: MyEpic = (action$, state$, {client}) =>
     filter(assetsActions.updateRequest.match),
     withLatestFrom(state$),
     mergeMap(([action, state]) => {
+      
       const {asset, closeDialogId, formData} = action.payload
 
       return of(action).pipe(
@@ -814,5 +848,7 @@ export const selectAssetsPickedLength = createSelector(
 )
 
 export const assetsActions = assetsSlice.actions
+
+export const { checkAndCreateTagsSuccess, checkAndCreateTagsFailure, resetTagsOperationState } = assetsSlice.actions
 
 export default assetsSlice.reducer
