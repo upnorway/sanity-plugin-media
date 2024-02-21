@@ -10,6 +10,14 @@ import {searchActions} from '../../modules/search'
 import { assetsActions } from '../../modules/assets'
 import { tagsActions } from '../../modules/tags'
 
+const LOADING_TEXT = 'Migrating...Please wait';
+const DEFAULT_TEXT = 'Check & Migrate Old Tags';
+const DEFAULT_ICON = AddIcon;
+const FONT_SIZE = 1;
+const MODE = "bleed";
+const SPACE = 2;
+const TONE = "primary";
+
 const SearchFacetsControl = () => {
   // Redux
   const dispatch = useDispatch()
@@ -21,14 +29,6 @@ const SearchFacetsControl = () => {
   // Assuming you have these selectors to get the operation state
   const isOperationSuccess = useTypedSelector(state => state.tags.isOperationSuccess);
   const isOperationFailure = useTypedSelector(state => state.tags.isOperationFailure);
-
-  const LOADING_TEXT = 'Migrating...Please wait';
-  const DEFAULT_TEXT = 'Check & Migrate Old Tags';
-  const DEFAULT_ICON = AddIcon;
-  const FONT_SIZE = 1;
-  const MODE = "bleed";
-  const SPACE = 2;
-  const TONE = "primary";
 
   const popoverProps = usePortalPopoverProps()
 
