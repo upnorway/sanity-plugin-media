@@ -1,18 +1,20 @@
-import {createSelector, createSlice, PayloadAction} from '@reduxjs/toolkit'
-import type {ClientError, Transaction} from '@sanity/client'
-import type {Asset, HttpError, MyEpic, TagSelectOption, Tag, TagItem} from '@types'
+import { createSelector, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import type { ClientError, Transaction } from '@sanity/client'
+import type { Asset, HttpError, MyEpic, TagSelectOption, Tag, TagItem } from '@types'
 import groq from 'groq'
-import {Selector} from 'react-redux'
-import {ofType} from 'redux-observable'
-import {from, Observable, of} from 'rxjs'
-import {bufferTime, catchError, filter, mergeMap, switchMap, withLatestFrom} from 'rxjs/operators'
-import {TAG_DOCUMENT_NAME} from '../../constants'
+import { Selector } from 'react-redux'
+import { ofType } from 'redux-observable'
+import { concat, EMPTY, from, Observable, of } from 'rxjs'
+import { bufferTime, catchError, concatMap, delay, filter, mergeMap, startWith, switchMap, take, toArray, withLatestFrom } from 'rxjs/operators'
+import { TAG_DOCUMENT_NAME } from '../../constants'
 import checkTagName from '../../operators/checkTagName'
 import debugThrottle from '../../operators/debugThrottle'
 import getTagSelectOptions from '../../utils/getTagSelectOptions'
-import {ASSETS_ACTIONS} from '../assets/actions'
-import {DIALOG_ACTIONS} from '../dialog/actions'
-import type {RootReducerState} from '../types'
+import { ASSETS_ACTIONS } from '../assets/actions'
+import { DIALOG_ACTIONS } from '../dialog/actions'
+import type { RootReducerState } from '../types'
+import useTypedSelector from '../../hooks/useTypedSelector'
+import { assetsActions } from '../assets'
 
 type TagsReducerState = {
   allIds: string[]
@@ -24,6 +26,8 @@ type TagsReducerState = {
   fetchingError?: HttpError
   // totalCount: number
   panelVisible: boolean
+  isOperationSuccess: boolean
+  isOperationFailure: boolean
 }
 
 const initialState = {
@@ -34,8 +38,43 @@ const initialState = {
   fetchCount: -1,
   fetching: false,
   fetchingError: undefined,
-  panelVisible: true
+  panelVisible: true,
+  isOperationSuccess: false,
+  isOperationFailure: false
 } as TagsReducerState
+
+const ASSET_QUERY = `
+  {
+    "items": *[_type == "sanity.imageAsset" || _type == "sanity.fileAsset"] {
+      _id,
+      _type,
+      _createdAt,
+      _updatedAt,
+      alt,
+      description,
+      extension,
+      metadata {
+        dimensions,
+        exif,
+        isOpaque,
+      },
+      mimeType,
+      opt {
+        media
+      },
+      originalFilename,
+      size,
+      title,
+      url,
+      tags,
+      attribution
+    }
+  }
+`;
+
+const SUCCESS_MESSAGE = "All assets processed successfully.";
+const FAILURE_MESSAGE = "Some assets could not be processed.";
+const INTERNAL_ERROR_MESSAGE = "Internal error";
 
 const tagsSlice = createSlice({
   name: 'tags',
@@ -46,7 +85,7 @@ const tagsSlice = createSlice({
         delete state.creatingError
       })
       .addCase(DIALOG_ACTIONS.showTagEdit, (state, action) => {
-        const {tagId} = action.payload
+        const { tagId } = action.payload
         delete state.byIds[tagId].error
       })
       .addMatcher(
@@ -58,7 +97,7 @@ const tagsSlice = createSlice({
             ASSETS_ACTIONS.tagsRemoveError.type
           ].includes(action.type),
         (state, action) => {
-          const {tag} = action.payload
+          const { tag } = action.payload
           state.byIds[tag._id].updating = false
         }
       )
@@ -69,14 +108,15 @@ const tagsSlice = createSlice({
             ASSETS_ACTIONS.tagsRemoveRequest.type
           ].includes(action.type),
         (state, action) => {
-          const {tag} = action.payload
+          const { tag } = action.payload
           state.byIds[tag._id].updating = true
         }
       )
+
   },
   reducers: {
-    createComplete(state, action: PayloadAction<{assetId?: string; tag: Tag}>) {
-      const {tag} = action.payload
+    createComplete(state, action: PayloadAction<{ assetId?: string; tag: Tag }>) {
+      const { tag } = action.payload
       state.creating = false
       if (!state.allIds.includes(tag._id)) {
         state.allIds.push(tag._id)
@@ -88,30 +128,46 @@ const tagsSlice = createSlice({
         updating: false
       }
     },
-    createError(state, action: PayloadAction<{error: HttpError; name: string}>) {
+    prepareTagOptions(state, action: PayloadAction<{ assetId: string, tags: string[], currentAsset: Asset }>) {
+    },
+    checkAndCreateTagsStart(state) {
+    },
+    checkAndCreateTagsSuccess(state, action) {
+      state.isOperationSuccess = true;
+      state.isOperationFailure = false;
+    },
+    checkAndCreateTagsFailure(state, action) {
+      state.isOperationSuccess = false; // Reset success state on failure
+      state.isOperationFailure = true;
+    },
+    resetTagsOperationState(state) {
+      state.isOperationSuccess = false;
+      state.isOperationFailure = false;
+    },
+    createError(state, action: PayloadAction<{ error: HttpError; name: string }>) {
       state.creating = false
       state.creatingError = action.payload.error
     },
-    createRequest(state, _action: PayloadAction<{assetId?: string; name: string}>) {
+    createRequest(state, _action: PayloadAction<{ assetId?: string; name: string }>) {
       state.creating = true
       delete state.creatingError
     },
-    deleteComplete(state, action: PayloadAction<{tagId: string}>) {
-      const {tagId} = action.payload
+    deleteComplete(state, action: PayloadAction<{ tagId: string }>) {
+      const { tagId } = action.payload
       const deleteIndex = state.allIds.indexOf(tagId)
       if (deleteIndex >= 0) {
         state.allIds.splice(deleteIndex, 1)
       }
       delete state.byIds[tagId]
     },
-    deleteError(state, action: PayloadAction<{error: HttpError; tag: Tag}>) {
-      const {error, tag} = action.payload
+    deleteError(state, action: PayloadAction<{ error: HttpError; tag: Tag }>) {
+      const { error, tag } = action.payload
 
       const tagId = tag?._id
       state.byIds[tagId].error = error
       state.byIds[tagId].updating = false
     },
-    deleteRequest(state, action: PayloadAction<{tag: Tag}>) {
+    deleteRequest(state, action: PayloadAction<{ tag: Tag }>) {
       const tagId = action.payload?.tag?._id
       state.byIds[tagId].picked = false
       state.byIds[tagId].updating = true
@@ -120,8 +176,8 @@ const tagsSlice = createSlice({
         delete state.byIds[key].error
       })
     },
-    fetchComplete(state, action: PayloadAction<{tags: Tag[]}>) {
-      const {tags} = action.payload
+    fetchComplete(state, action: PayloadAction<{ tags: Tag[] }>) {
+      const { tags } = action.payload
 
       tags?.forEach(tag => {
         state.allIds.push(tag._id)
@@ -137,13 +193,13 @@ const tagsSlice = createSlice({
       state.fetchCount = tags.length || 0
       delete state.fetchingError
     },
-    fetchError(state, action: PayloadAction<{error: HttpError}>) {
-      const {error} = action.payload
+    fetchError(state, action: PayloadAction<{ error: HttpError }>) {
+      const { error } = action.payload
       state.fetching = false
       state.fetchingError = error
     },
     fetchRequest: {
-      reducer: (state, _action: PayloadAction<{query: string}>) => {
+      reducer: (state, _action: PayloadAction<{ query: string }>) => {
         state.fetching = true
         delete state.fetchingError
       },
@@ -164,16 +220,16 @@ const tagsSlice = createSlice({
             } | order(name.current asc),
           }
         `
-        return {payload: {query}}
+        return { payload: { query } }
       }
     },
     // Queue batch tag creation
-    listenerCreateQueue(_state, _action: PayloadAction<{tag: Tag}>) {
+    listenerCreateQueue(_state, _action: PayloadAction<{ tag: Tag }>) {
       //
     },
     // Apply created tags (via sanity real-time events)
-    listenerCreateQueueComplete(state, action: PayloadAction<{tags: Tag[]}>) {
-      const {tags} = action.payload
+    listenerCreateQueueComplete(state, action: PayloadAction<{ tags: Tag[] }>) {
+      const { tags } = action.payload
 
       tags?.forEach(tag => {
         state.byIds[tag._id] = {
@@ -188,12 +244,12 @@ const tagsSlice = createSlice({
       })
     },
     // Queue batch tag deletion
-    listenerDeleteQueue(_state, _action: PayloadAction<{tagId: string}>) {
+    listenerDeleteQueue(_state, _action: PayloadAction<{ tagId: string }>) {
       //
     },
     // Apply deleted tags (via sanity real-time events)
-    listenerDeleteQueueComplete(state, action: PayloadAction<{tagIds: string[]}>) {
-      const {tagIds} = action.payload
+    listenerDeleteQueueComplete(state, action: PayloadAction<{ tagIds: string[] }>) {
+      const { tagIds } = action.payload
 
       tagIds?.forEach(tagId => {
         const deleteIndex = state.allIds.indexOf(tagId)
@@ -204,12 +260,12 @@ const tagsSlice = createSlice({
       })
     },
     // Queue batch tag updates
-    listenerUpdateQueue(_state, _action: PayloadAction<{tag: Tag}>) {
+    listenerUpdateQueue(_state, _action: PayloadAction<{ tag: Tag }>) {
       //
     },
     // Apply updated tags (via sanity real-time events)
-    listenerUpdateQueueComplete(state, action: PayloadAction<{tags: Tag[]}>) {
-      const {tags} = action.payload
+    listenerUpdateQueueComplete(state, action: PayloadAction<{ tags: Tag[] }>) {
+      const { tags } = action.payload
 
       tags?.forEach(tag => {
         if (state.byIds[tag._id]) {
@@ -218,8 +274,8 @@ const tagsSlice = createSlice({
       })
     },
     // Set tag panel visibility
-    panelVisibleSet(state, action: PayloadAction<{panelVisible: boolean}>) {
-      const {panelVisible} = action.payload
+    panelVisibleSet(state, action: PayloadAction<{ panelVisible: boolean }>) {
+      const { panelVisible } = action.payload
       state.panelVisible = panelVisible
     },
     // Sort all tags by name
@@ -236,13 +292,13 @@ const tagsSlice = createSlice({
         return 0
       })
     },
-    updateComplete(state, action: PayloadAction<{closeDialogId?: string; tag: Tag}>) {
-      const {tag} = action.payload
+    updateComplete(state, action: PayloadAction<{ closeDialogId?: string; tag: Tag }>) {
+      const { tag } = action.payload
       state.byIds[tag._id].tag = tag
       state.byIds[tag._id].updating = false
     },
-    updateError(state, action: PayloadAction<{tag: Tag; error: HttpError}>) {
-      const {error, tag} = action.payload
+    updateError(state, action: PayloadAction<{ tag: Tag; error: HttpError }>) {
+      const { error, tag } = action.payload
       const tagId = tag?._id
       state.byIds[tagId].error = error
       state.byIds[tagId].updating = false
@@ -255,7 +311,7 @@ const tagsSlice = createSlice({
         tag: Tag
       }>
     ) {
-      const {tag} = action.payload
+      const { tag } = action.payload
       state.byIds[tag?._id].updating = true
     }
   }
@@ -267,12 +323,12 @@ const tagsSlice = createSlice({
 // - async check to see if tag already exists
 // - throw if tag already exists
 // - otherwise, create new tag
-export const tagsCreateEpic: MyEpic = (action$, state$, {client}) =>
+export const tagsCreateEpic: MyEpic = (action$, state$, { client }) =>
   action$.pipe(
     filter(tagsSlice.actions.createRequest.match),
     withLatestFrom(state$),
     mergeMap(([action, state]) => {
-      const {assetId, name} = action.payload
+      const { assetId, name } = action.payload
 
       return of(action).pipe(
         debugThrottle(state.debug.badConnection),
@@ -286,7 +342,7 @@ export const tagsCreateEpic: MyEpic = (action$, state$, {client}) =>
             }
           })
         ),
-        mergeMap(result => of(tagsSlice.actions.createComplete({assetId, tag: result as Tag}))),
+        mergeMap(result => of(tagsSlice.actions.createComplete({ assetId, tag: result as Tag }))),
         catchError((error: ClientError) =>
           of(
             tagsSlice.actions.createError({
@@ -300,17 +356,117 @@ export const tagsCreateEpic: MyEpic = (action$, state$, {client}) =>
         )
       )
     })
-  )
+  );
+
+  export const checkAndCreateTagsForAssetsEpic: MyEpic = (action$, state$, { client }) =>
+  action$.pipe(
+    filter(tagsSlice.actions.checkAndCreateTagsStart.match),
+    withLatestFrom(state$),
+    switchMap(([action, state]) => {
+      return client.observable.fetch<{ items: Asset[] }>(ASSET_QUERY).pipe(
+        mergeMap(result => {
+          const { items } = result;
+          const prepareTagOptionsActions$ = from(items).pipe(
+            concatMap(asset => {
+              if (asset.tags) {
+                const params = { assetId: asset._id, tags: asset.tags, currentAsset: asset };
+                return of(tagsSlice.actions.prepareTagOptions(params)).pipe(delay(10000));
+              }
+              return EMPTY;
+            }),
+          );
+
+          const finalAction$ = from(items).pipe(
+            toArray(),
+            mergeMap(processedItems => {
+              const allOperationsSuccessful = processedItems.length === items.length;
+              return of(
+                allOperationsSuccessful
+                  ? checkAndCreateTagsSuccess({ message: SUCCESS_MESSAGE })
+                  : checkAndCreateTagsFailure({ message: FAILURE_MESSAGE })
+              );
+            })
+          );
+
+          return concat(prepareTagOptionsActions$, finalAction$);
+        }),
+        catchError((error: any) =>
+          of(checkAndCreateTagsFailure({
+            message: error?.message || INTERNAL_ERROR_MESSAGE,
+            statusCode: error?.statusCode || 500
+          }))
+        )
+      );
+    })
+  );
+
+export const ensureTagsExistEpic: MyEpic = (action$, state$) =>
+  action$.pipe(
+    filter(tagsSlice.actions.prepareTagOptions.match),
+    mergeMap(action => {
+      let updatedTagOptions: any[] = [];
+      const existingTags = action.payload.currentAsset.opt?.media?.tags || [];
+      updatedTagOptions.push(...existingTags);
+
+      return from(action.payload.tags).pipe(
+        concatMap(tagName => {
+          const asset = action.payload.currentAsset;
+          const isTagExists = Object.values(state$?.value?.tags?.byIds).some(tag => tag?.tag?.name?.current === tagName);
+          const isTagIdExistsInAsset = action.payload.currentAsset.opt?.media?.tags?.some(tagRef => {
+            const tag = state$.value.tags.byIds[tagRef._ref];
+            return tag?.tag?.name?.current === tagName;
+          });
+          if (!isTagExists) {
+            return action$.pipe(
+              ofType(tagsSlice.actions.createComplete.type),
+              take(1),
+              mergeMap(createCompleteAction => {
+                const newTagRef = createCompleteAction.payload.tag._id;
+                updatedTagOptions.push({
+                  _ref: newTagRef,
+                  _type: "reference",
+                  _weak: true
+                });
+                
+                const formData = createFormData(asset, updatedTagOptions);
+
+                return of(assetsActions.updateRequest({ asset, formData }));
+              }),
+              startWith(tagsActions.createRequest({
+                assetId: action.payload.assetId,
+                name: tagName as string,
+              }))
+            );
+          } else if (!isTagIdExistsInAsset) {
+            const newTagRef = Object.entries(state$.value.tags.byIds).find(([tagId, tag]) => tag?.tag?.name?.current === tagName)?.[0];
+
+            if (newTagRef) {
+              updatedTagOptions.push({
+                _ref: newTagRef,
+                _type: "reference",
+                _weak: true
+              });
+
+              const formData = createFormData(asset, updatedTagOptions);
+
+              return of(assetsActions.updateRequest({ asset, formData }));
+            }
+          }
+          return EMPTY;
+        })
+      );
+    })
+  );
 
 // On tag delete request
 // - find referenced assets
 // - remove tag from referenced assets in a sanity transaction
-export const tagsDeleteEpic: MyEpic = (action$, state$, {client}) =>
+export const tagsDeleteEpic: MyEpic = (action$, state$, { client }) =>
   action$.pipe(
     filter(tagsSlice.actions.deleteRequest.match),
     withLatestFrom(state$),
     mergeMap(([action, state]) => {
-      const {tag} = action.payload
+      const { tag } = action.payload
       return of(action).pipe(
         // Optionally throttle
         debugThrottle(state.debug.badConnection),
@@ -325,7 +481,7 @@ export const tagsDeleteEpic: MyEpic = (action$, state$, {client}) =>
               _rev,
               opt
             }`,
-            {tagName: tag.name.current}
+            { tagName: tag.name.current }
           )
         ),
         // Create transaction which remove tag references from all matched assets and delete tag
@@ -349,7 +505,7 @@ export const tagsDeleteEpic: MyEpic = (action$, state$, {client}) =>
           return from(transaction.commit())
         }),
         // Dispatch complete action
-        mergeMap(() => of(tagsSlice.actions.deleteComplete({tagId: tag._id}))),
+        mergeMap(() => of(tagsSlice.actions.deleteComplete({ tagId: tag._id }))),
         catchError((error: ClientError) =>
           of(
             tagsSlice.actions.deleteError({
@@ -366,12 +522,12 @@ export const tagsDeleteEpic: MyEpic = (action$, state$, {client}) =>
   )
 
 // Async fetch tags
-export const tagsFetchEpic: MyEpic = (action$, state$, {client}) =>
+export const tagsFetchEpic: MyEpic = (action$, state$, { client }) =>
   action$.pipe(
     filter(tagsSlice.actions.fetchRequest.match),
     withLatestFrom(state$),
     switchMap(([action, state]) => {
-      const {query} = action.payload
+      const { query } = action.payload
 
       return of(action).pipe(
         // Optionally throttle
@@ -384,8 +540,8 @@ export const tagsFetchEpic: MyEpic = (action$, state$, {client}) =>
         ),
         // Dispatch complete action
         mergeMap(result => {
-          const {items} = result
-          return of(tagsSlice.actions.fetchComplete({tags: items}))
+          const { items } = result
+          return of(tagsSlice.actions.fetchComplete({ tags: items }))
         }),
         catchError((error: ClientError) =>
           of(
@@ -410,7 +566,7 @@ export const tagsListenerCreateQueueEpic: MyEpic = action$ =>
     filter(actions => actions.length > 0),
     mergeMap(actions => {
       const tags = actions?.map(action => action.payload.tag)
-      return of(tagsSlice.actions.listenerCreateQueueComplete({tags}))
+      return of(tagsSlice.actions.listenerCreateQueueComplete({ tags }))
     })
   )
 
@@ -423,7 +579,7 @@ export const tagsListenerDeleteQueueEpic: MyEpic = action$ =>
     filter(actions => actions.length > 0),
     mergeMap(actions => {
       const tagIds = actions?.map(action => action.payload.tagId)
-      return of(tagsSlice.actions.listenerDeleteQueueComplete({tagIds}))
+      return of(tagsSlice.actions.listenerDeleteQueueComplete({ tagIds }))
     })
   )
 
@@ -436,7 +592,7 @@ export const tagsListenerUpdateQueueEpic: MyEpic = action$ =>
     filter(actions => actions.length > 0),
     mergeMap(actions => {
       const tags = actions?.map(action => action.payload.tag)
-      return of(tagsSlice.actions.listenerUpdateQueueComplete({tags}))
+      return of(tagsSlice.actions.listenerUpdateQueueComplete({ tags }))
     })
   )
 
@@ -457,12 +613,12 @@ export const tagsSortEpic: MyEpic = action$ =>
 // - check if tag name already exists
 // - throw if tag already exists
 // - otherwise, patch document
-export const tagsUpdateEpic: MyEpic = (action$, state$, {client}) =>
+export const tagsUpdateEpic: MyEpic = (action$, state$, { client }) =>
   action$.pipe(
     filter(tagsSlice.actions.updateRequest.match),
     withLatestFrom(state$),
     mergeMap(([action, state]) => {
-      const {closeDialogId, formData, tag} = action.payload
+      const { closeDialogId, formData, tag } = action.payload
 
       return of(action).pipe(
         // Optionally throttle
@@ -475,7 +631,7 @@ export const tagsUpdateEpic: MyEpic = (action$, state$, {client}) =>
             from(
               client
                 .patch(tag._id)
-                .set({name: {_type: 'slug', current: formData?.name.current}})
+                .set({ name: { _type: 'slug', current: formData?.name.current } })
                 .commit()
             ) as Observable<Tag>
         ),
@@ -509,6 +665,15 @@ const selectTagsByIds = (state: RootReducerState) => state.tags.byIds
 
 const selectTagsAllIds = (state: RootReducerState) => state.tags.allIds
 
+const createFormData = (asset: any, updatedTagOptions: any[]) => ({
+  alt: asset?.alt,
+  description: asset?.description,
+  opt: { media: { tags: updatedTagOptions } },
+  originalFilename: asset?.originalFilename,
+  title: asset?.title,
+  attribution: asset?.attribution
+});
+
 export const selectTags: Selector<RootReducerState, TagItem[]> = createSelector(
   [selectTagsByIds, selectTagsAllIds],
   (byIds, allIds) => allIds.map(id => byIds[id])
@@ -523,22 +688,24 @@ export const selectTagById = createSelector(
 // Map tag references to react-select options, skipping over items with no linked tags
 export const selectTagSelectOptions =
   (asset?: Asset) =>
-  (state: RootReducerState): TagSelectOption[] | null => {
-    const tags = asset?.opt?.media?.tags?.reduce((acc: TagItem[], v) => {
-      const tagItem = state.tags.byIds[v._ref]
-      if (tagItem?.tag) {
-        acc.push(tagItem)
-      }
-      return acc
-    }, [])
+    (state: RootReducerState): TagSelectOption[] | null => {
+      const tags = asset?.opt?.media?.tags?.reduce((acc: TagItem[], v) => {
+        const tagItem = state.tags.byIds[v._ref]
+        if (tagItem?.tag) {
+          acc.push(tagItem)
+        }
+        return acc
+      }, [])
 
-    if (tags && tags?.length > 0) {
-      return getTagSelectOptions(tags)
+      if (tags && tags?.length > 0) {
+        return getTagSelectOptions(tags)
+      }
+
+      return null
     }
 
-    return null
-  }
-
 export const tagsActions = tagsSlice.actions
+
+export const { checkAndCreateTagsSuccess, checkAndCreateTagsFailure, resetTagsOperationState } = tagsSlice.actions
 
 export default tagsSlice.reducer

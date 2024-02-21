@@ -5,8 +5,9 @@ export const tagOptionSchema = z.object({
   value: z.string().trim().min(1, {message: 'Value cannot be empty'})
 })
 
+//TODO: improve this not to use the library name as z. and also, this should be wrapped with util
 export const assetFormSchema = z.object({
-  altText: z.string().trim().optional(),
+  alt: z.string().trim().optional(),
   description: z.string().trim().optional(),
   opt: z.object({
     media: z.object({
@@ -14,7 +15,8 @@ export const assetFormSchema = z.object({
     })
   }),
   originalFilename: z.string().trim().min(1, {message: 'Filename cannot be empty'}),
-  title: z.string().trim().optional()
+  title: z.string().trim().optional(),
+  attribution: z.string().trim().optional()
 })
 
 export const tagFormSchema = z.object({

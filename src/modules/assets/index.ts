@@ -13,12 +13,13 @@ import {
 } from '@types'
 import groq from 'groq'
 import {nanoid} from 'nanoid'
-import {Selector} from 'react-redux'
+import {Selector, useDispatch} from 'react-redux'
 import {ofType} from 'redux-observable'
-import {empty, from, of} from 'rxjs'
+import {empty, from, of, toArray} from 'rxjs'
 import {
   bufferTime,
   catchError,
+  concatMap,
   debounceTime,
   filter,
   mergeMap,
@@ -33,6 +34,10 @@ import {searchActions} from '../search'
 import type {RootReducerState} from '../types'
 import {UPLOADS_ACTIONS} from '../uploads/actions'
 import {ASSETS_ACTIONS} from './actions'
+import tags, {tagsActions} from '../../modules/tags'
+import { selectCombinedItems } from '../selectors'
+import useTypedSelector from '../../hooks/useTypedSelector'
+import { useState } from 'react'
 type ItemError = {
   description: string
   id: string
@@ -238,7 +243,7 @@ const assetsSlice = createSlice({
               _type,
               _createdAt,
               _updatedAt,
-              altText,
+              alt,
               description,
               extension,
               metadata {
@@ -253,7 +258,9 @@ const assetsSlice = createSlice({
               originalFilename,
               size,
               title,
-              url
+              url,
+              tags,
+              attribution
             } ${pipe} ${sort} ${selector},
           }
         `
@@ -375,7 +382,17 @@ const assetsSlice = createSlice({
       action: PayloadAction<{asset: Asset; closeDialogId?: string; formData: Record<string, any>}>
     ) {
       const assetId = action.payload?.asset?._id
-      state.byIds[assetId].updating = true
+      const asset = action.payload?.asset;
+      if(state.byIds[assetId]){
+        state.byIds[assetId].updating = true
+      } else {
+        state.byIds[assetId] = {
+          _type: 'asset',
+          asset: asset as Asset,
+          picked: false,
+          updating: true
+        }
+      }
     },
     viewSet(state, action: PayloadAction<{view: BrowserView}>) {
       state.view = action.payload?.view
@@ -390,7 +407,7 @@ export const assetsDeleteEpic: MyEpic = (action$, _state$, {client}) =>
     filter(assetsActions.deleteRequest.match),
     mergeMap(action => {
       const {assets} = action.payload
-      const assetIds = assets.map(asset => asset._id)
+      const assetIds = assets.map((asset: { _id: string }) => asset._id)
       return of(assets).pipe(
         mergeMap(() =>
           client.observable.delete({
@@ -505,11 +522,11 @@ const filterAssetWithoutTag = (tag: Tag) => (asset: AssetItem) => {
 const patchOperationTagAppend =
   ({tag}: {tag: Tag}) =>
   (patch: Patch) =>
-    patch
-      .setIfMissing({opt: {}})
-      .setIfMissing({'opt.media': {}})
-      .setIfMissing({'opt.media.tags': []})
-      .append('opt.media.tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
+  patch
+    .setIfMissing({opt: {}})
+    .setIfMissing({'opt.media': {}})
+    .setIfMissing({'opt.media.tags': []})
+    .append('opt.media.tags', [{_key: nanoid(), _ref: tag?._id, _type: 'reference', _weak: true}])
 
 const patchOperationTagUnset =
   ({asset, tag}: {asset: AssetItem; tag: Tag}) =>
@@ -743,6 +760,7 @@ export const assetsUpdateEpic: MyEpic = (action$, state$, {client}) =>
     filter(assetsActions.updateRequest.match),
     withLatestFrom(state$),
     mergeMap(([action, state]) => {
+      
       const {asset, closeDialogId, formData} = action.payload
 
       return of(action).pipe(

@@ -1,12 +1,22 @@
 import {AddIcon} from '@sanity/icons'
 import {Button, Flex, Menu, MenuButton, MenuDivider, MenuGroup, MenuItem} from '@sanity/ui'
 import {SearchFacetDivider, SearchFacetGroup, SearchFacetInputProps} from '@types'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {useDispatch} from 'react-redux'
 import {FACETS} from '../../constants'
 import {usePortalPopoverProps} from '../../hooks/usePortalPopoverProps'
 import useTypedSelector from '../../hooks/useTypedSelector'
 import {searchActions} from '../../modules/search'
+import { assetsActions } from '../../modules/assets'
+import { tagsActions } from '../../modules/tags'
+
+const LOADING_TEXT = 'Migrating...Please wait';
+const DEFAULT_TEXT = 'Check & Migrate Old Tags';
+const DEFAULT_ICON = AddIcon;
+const FONT_SIZE = 1;
+const MODE = "bleed";
+const SPACE = 2;
+const TONE = "primary";
 
 const SearchFacetsControl = () => {
   // Redux
@@ -15,9 +25,27 @@ const SearchFacetsControl = () => {
   const searchFacets = useTypedSelector(state => state.search.facets)
   const selectedDocument = useTypedSelector(state => state.selected.document)
 
+  const [isLoading, setIsLoading] = useState(false);
+  // Assuming you have these selectors to get the operation state
+  const isOperationSuccess = useTypedSelector(state => state.tags.isOperationSuccess);
+  const isOperationFailure = useTypedSelector(state => state.tags.isOperationFailure);
+
   const popoverProps = usePortalPopoverProps()
 
   const isTool = !selectedDocument
+
+  const handleCheckCreateTagsClick = () => {
+    setIsLoading(true);
+    dispatch(tagsActions.checkAndCreateTagsStart());
+  };
+
+  // React to the completion of the operation
+  useEffect(() => {
+    if (isOperationSuccess || isOperationFailure) {
+      setIsLoading(false);
+      // Optionally, dispatch an action to reset the operation state here
+    }
+  }, [isOperationSuccess, isOperationFailure, dispatch]);
 
   const filteredFacets = FACETS
     // Filter facets based on current context, whether it's invoked as a tool, or via selection through via custom asset source.
@@ -124,6 +152,17 @@ const SearchFacetsControl = () => {
           text="Clear"
         />
       )}
+
+      <Button
+        onClick={handleCheckCreateTagsClick}
+        text={isLoading ? LOADING_TEXT : DEFAULT_TEXT}
+        icon={isLoading ? null : DEFAULT_ICON} // Adjust icon based on your preference for loading state
+        disabled={isLoading} // Disable button when operation is in progress
+        fontSize={FONT_SIZE}
+        mode={MODE}
+        space={SPACE}
+        tone={TONE}
+      />
     </Flex>
   )
 }

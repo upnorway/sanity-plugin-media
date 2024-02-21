@@ -44,6 +44,8 @@ import notificationsReducer, {
 import searchReducer, {searchFacetTagUpdateEpic} from './search'
 import tagsReducer, {
   tagsCreateEpic,
+  ensureTagsExistEpic,
+  checkAndCreateTagsForAssetsEpic,
   tagsDeleteEpic,
   tagsFetchEpic,
   tagsListenerCreateQueueEpic,
@@ -72,6 +74,7 @@ export const rootEpic = combineEpics(
   assetsSearchEpic,
   assetsSortEpic,
   assetsTagsAddEpic,
+  checkAndCreateTagsForAssetsEpic,
   assetsTagsRemoveEpic,
   assetsUnpickEpic,
   assetsUpdateEpic,
@@ -89,6 +92,7 @@ export const rootEpic = combineEpics(
   notificationsTagUpdateCompleteEpic,
   searchFacetTagUpdateEpic,
   tagsCreateEpic,
+  ensureTagsExistEpic,
   tagsDeleteEpic,
   tagsFetchEpic,
   tagsListenerCreateQueueEpic,

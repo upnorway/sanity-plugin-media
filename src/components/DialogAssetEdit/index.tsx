@@ -62,11 +62,12 @@ const DialogAssetEdit = (props: Props) => {
   const generateDefaultValues = useCallback(
     (asset?: Asset): AssetFormData => {
       return {
-        altText: asset?.altText || '',
+        alt: asset?.alt || '',
         description: asset?.description || '',
         originalFilename: asset?.originalFilename || '',
         opt: {media: {tags: assetTagOptions}},
-        title: asset?.title || ''
+        title: asset?.title || '',
+        attribution: asset?.attribution || ''
       }
     },
     [assetTagOptions]
@@ -325,12 +326,12 @@ const DialogAssetEdit = (props: Props) => {
                         />
                         {/* Alt text */}
                         <FormFieldInputText
-                          {...register('altText')}
+                          {...register('alt')}
                           disabled={formUpdating}
-                          error={errors?.altText?.message}
+                          error={errors?.alt?.message}
                           label="Alt Text"
-                          name="altText"
-                          value={currentAsset?.altText}
+                          name="alt"
+                          value={currentAsset?.alt}
                         />
                         {/* Description */}
                         <FormFieldInputTextarea
@@ -341,6 +342,16 @@ const DialogAssetEdit = (props: Props) => {
                           name="description"
                           rows={5}
                           value={currentAsset?.description}
+                        />
+                        {/* Attributions */}
+                        <FormFieldInputTextarea
+                          {...register('attribution')}
+                          disabled={formUpdating}
+                          error={errors?.attribution?.message}
+                          label="Attributions"
+                          name="attribution"
+                          rows={3}
+                          value={currentAsset?.attribution}
                         />
                       </Stack>
                     </TabPanel>
