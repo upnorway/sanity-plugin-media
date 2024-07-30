@@ -61,7 +61,6 @@
   "dependencies": {
     "@hookform/resolvers": "^3.1.1",
     "@reduxjs/toolkit": "^1.9.0",
-    "@sanity/assist": "^2.0.0",
     "@sanity/incompatible-plugin": "^1.0.4",
     "@sanity/ui": "^1.0 || ^2.0",
     "@sanity/uuid": "^3.0.1",
@@ -84,6 +83,7 @@
     "redux": "^4.2.0",
     "redux-observable": "^2.0.0",
     "rxjs": "^7.0.0",
+    "typescript-plugin-css-modules": "^5.1.0",
     "zod": "^3.21.4"
   },
   "devDependencies": {
@@ -104,7 +104,9 @@
     "@types/styled-components": "^5.1.7",
     "@typescript-eslint/eslint-plugin": "^5.42.0",
     "@typescript-eslint/parser": "^5.42.0",
+    "babel-plugin-css-modules-transform": "^1.6.2",
     "conventional-changelog-conventionalcommits": "^5.0.0",
+    "css-loader": "^7.1.2",
     "eslint": "^8.27.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-config-sanity": "^6.0.0",
