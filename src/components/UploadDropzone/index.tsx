@@ -10,7 +10,6 @@ import useTypedSelector from '../../hooks/useTypedSelector'
 import {notificationsActions} from '../../modules/notifications'
 import {uploadsActions} from '../../modules/uploads'
 import ReactCrop, {Crop} from 'react-image-crop'
-import 'react-image-crop/dist/ReactCrop.css'
 import {CropIcon} from '@sanity/icons'
 
 type Props = {
