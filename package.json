@@ -1,6 +1,6 @@
 {
   "name": "@upnorway/sanity-plugin-media",
-  "version": "2.2.10",
+  "version": "2.2.11",
   "description": "This version of `sanity-plugin-media` is for Sanity Studio V3.",
   "keywords": [
     "sanity",
@@ -61,7 +61,6 @@
   "dependencies": {
     "@hookform/resolvers": "^3.1.1",
     "@reduxjs/toolkit": "^1.9.0",
-    "@sanity/assist": "^2.0.0",
     "@sanity/incompatible-plugin": "^1.0.4",
     "@sanity/ui": "^1.0 || ^2.0",
     "@sanity/uuid": "^3.0.1",
