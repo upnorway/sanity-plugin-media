@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.2.19](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.18...v2.2.19) (2024-07-30)
+
 ### [2.2.18](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.17...v2.2.18) (2024-07-30)
 
 ### [2.2.17](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.16...v2.2.17) (2024-07-30)
