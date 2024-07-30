@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.3.1](https://github.com/upnorway/sanity-plugin-media/compare/v2.3.0...v2.3.1) (2024-07-30)
+
+
+### Bug Fixes
+
+* update CSS import for react-image-crop ([8528d79](https://github.com/upnorway/sanity-plugin-media/commit/8528d797ba9fb3860919fdfb47f40d1f96634e10))
+
 ## [2.3.0](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.20...v2.3.0) (2024-07-30)
 
 
