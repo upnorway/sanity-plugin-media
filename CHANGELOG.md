@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.3.0](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.20...v2.3.0) (2024-07-30)
+
+
+### Features
+
+* move styles to the file (U2-14767) ([6bcb37a](https://github.com/upnorway/sanity-plugin-media/commit/6bcb37a3bda13edafcd234116e830a97afb5d826))
+
 ### [2.2.20](https://github.com/upnorway/sanity-plugin-media/compare/v2.3.12...v2.2.20) (2024-07-30)
 
 ### [2.2.19](https://github.com/upnorway/sanity-plugin-media/compare/v2.2.18...v2.2.19) (2024-07-30)
