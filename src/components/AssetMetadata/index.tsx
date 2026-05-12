@@ -48,7 +48,28 @@ const AssetMetadata = (props: Props) => {
 
   // Callbacks
   const handleDownload = () => {
-    window.location.href = `${asset.url}?dl=${asset.originalFilename}`
+    let downloadUrl: URL
+    try {
+      downloadUrl = new URL(asset.url)
+    } catch {
+      return
+    }
+    if (downloadUrl.protocol !== 'https:' && downloadUrl.protocol !== 'http:') {
+      return
+    }
+    downloadUrl.searchParams.set('dl', asset.originalFilename ?? '')
+
+    const anchor = document.createElement('a')
+    anchor.href = downloadUrl.toString()
+    anchor.download = asset.originalFilename ?? ''
+    anchor.rel = 'noopener noreferrer'
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    try {
+      anchor.click()
+    } finally {
+      document.body.removeChild(anchor)
+    }
   }
 
   return (
